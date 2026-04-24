@@ -28,7 +28,7 @@ This is an autonomous-only competition held at De Anza College.
 ## Track Specifications
 
 - Surface: white mat or paper
-- Line: black tape or printed black line, **2–2.5cm wide**
+- Line: black tape or a printed black line, **3/4 to 1 inch wide** (1.8-2.5 cm)
 - Track includes: straight sections, curves, and at least one sharp turn
 - Track layout is revealed on the day of competition
 
