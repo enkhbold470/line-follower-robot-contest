@@ -124,9 +124,10 @@ You can bring a short demo or explain your design to the judges before your run.
 
 ## Entry
 
-- Fee: **$5** (covers venue and materials)
+- Fee: **$5** (Collected strictly as a "materials contribution" to cover low-tack track tape, badges, and venue supplies)
 - Pre-registration required via the event page
 - Walk-ins may be accepted depending on capacity
+- **Important:** All participants must read and agree to the [Event Policies & Terms of Participation](event-policies.md).
 
 ---
 
