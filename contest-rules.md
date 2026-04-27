@@ -10,7 +10,7 @@ This is an autonomous-only competition held at De Anza College.
 ## Robot Specifications
 
 ### Size
-- Max footprint: **8 x 8 inches (20cm x 20cm)** (no height limit)
+- Max footprint: **8 x 8 inches (~20.3cm x 20.3cm)** (no height limit)
 - Measured at rest before the run
 - Robots exceeding the footprint are disqualified before they run
 
@@ -28,7 +28,7 @@ This is an autonomous-only competition held at De Anza College.
 ## Track Specifications
 
 - Surface: white mat or paper
-- Line: black tape or a printed black line, **3/4 to 1 inch wide** (1.8-2.5 cm)
+- Line: black tape or a printed black line, **3/4 to 1 inch wide** (~1.9–2.5 cm)
 - Track includes: straight sections, curves, and at least one sharp turn
 - Track layout is revealed on the day of competition
 
@@ -71,7 +71,7 @@ Ties are broken by the second-best run time.
 |-----------|---------|
 | Robot leaves track, self-recovers | +5 sec per instance |
 | Robot requires manual reset | Run marked DNF |
-| Robot exceeds size limits | Disqualified from that run |
+| Robot exceeds size limits | Disqualified from event |
 | Remote/wireless control used | Disqualified from event |
 
 ---
@@ -98,7 +98,7 @@ Ties are broken by the second-best run time.
 - Remote control input of any kind during a run
 - Batteries exceeding 12.6V
 - Robots that damage the track surface
-- Robots wider or longer than 8 inches (20cm) at the footprint
+- Robots wider or longer than 8 inches (~20.3cm) at the footprint
 
 ---
 
