@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>ROBOT</title>
+<title>BADGE</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0a">
 <style>
@@ -14,6 +14,7 @@
     --line:   #2a2924;
     --hot:    #ff4a1c;
     --ok:     #b6c46b;
+    --acc:    #6ec6ff;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin:0; padding:0; }
@@ -25,7 +26,6 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* status bar - always visible at top */
   .topbar {
     position: sticky; top: 0; z-index: 10;
     background: var(--bg-2);
@@ -54,7 +54,6 @@
   }
   .topbar .pro.on { color: var(--hot); }
 
-  /* main column */
   main {
     max-width: 520px;
     margin: 0 auto;
@@ -62,7 +61,6 @@
     display: flex; flex-direction: column; gap: 18px;
   }
 
-  /* card sections */
   section {
     background: var(--bg-2);
     border: 1px solid var(--line);
@@ -79,7 +77,6 @@
   }
   section > h2:first-child { margin-top: 0; }
 
-  /* connect button - big and obvious */
   .connect-btn {
     width: 100%;
     padding: 18px;
@@ -94,17 +91,15 @@
   .connect-btn:disabled { background: var(--bg-2); color: var(--dim); }
   .connect-btn.hidden { display: none; }
 
-  /* telemetry - compact 4-cell grid */
+  /* status row */
   .tele {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     text-align: center;
   }
   .tele .cell .k { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
   .tele .cell .v { font-size: 18px; font-weight: 600; margin-top: 2px; }
-  .bar { height: 3px; background: var(--line); margin-top: 6px; position: relative; border-radius: 2px; }
-  .bar > i { position: absolute; top: 0; bottom: 0; width: 4px; background: var(--hot); border-radius: 2px; transition: left 100ms; }
 
   /* form */
   label {
@@ -116,7 +111,7 @@
     letter-spacing: 0.08em;
   }
   label:first-child { margin-top: 0; }
-  input, textarea {
+  input, textarea, select {
     width: 100%;
     background: var(--bg);
     color: var(--ink);
@@ -124,12 +119,11 @@
     border-radius: 8px;
     padding: 12px;
     font: inherit;
-    font-size: 16px;  /* >=16 prevents iOS zoom */
+    font-size: 16px;
   }
-  input:focus, textarea:focus { outline: none; border-color: var(--hot); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--hot); }
   textarea { min-height: 80px; resize: vertical; }
 
-  /* buttons */
   button {
     font: inherit;
     font-size: 14px;
@@ -147,34 +141,47 @@
     color: var(--ink);
     border: 1px solid var(--line);
   }
+  button.accent {
+    background: var(--acc);
+    color: var(--bg);
+  }
   button:disabled { opacity: 0.3; cursor: not-allowed; }
-  .row { display: flex; gap: 8px; margin-top: 12px; }
-  .row button { flex: 1; }
+  .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .row button { flex: 1; min-width: 90px; }
 
-  /* jog - 3x3 phone-friendly */
-  .jog {
+  /* mode grid */
+  .modes {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    max-width: 240px;
-    margin: 0 auto;
   }
-  .jog button {
-    aspect-ratio: 1;
-    font-size: 24px;
-    padding: 0;
+  .modes button {
+    padding: 14px 4px;
+    font-size: 13px;
+    min-height: 60px;
   }
-  .jog .blank { visibility: hidden; }
-  .jog .stop { background: var(--hot); color: #fff; }
 
-  /* PID 3-column */
-  .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  /* big remote button */
+  .remote {
+    display: flex; gap: 8px;
+  }
+  .remote .big {
+    flex: 2;
+    padding: 22px;
+    font-size: 18px;
+    background: var(--hot);
+    color: #fff;
+  }
+  .remote .esc {
+    flex: 1;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
 
-  /* pro section toggleable */
   .pro-only { display: none; }
   body.pro .pro-only { display: block; }
 
-  /* log */
   .log {
     margin-top: 12px;
     height: 90px;
@@ -189,7 +196,6 @@
   .log .ln b { color: var(--ink); }
   .log .ln.err b { color: var(--hot); }
 
-  /* alert */
   .alert {
     margin: 12px;
     padding: 12px;
@@ -198,6 +204,17 @@
     color: var(--hot);
     font-size: 13px;
   }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--dim);
+    margin-left: 6px;
+  }
+  .pill.on { color: var(--ok); border-color: var(--ok); }
 </style>
 </head>
 <body>
@@ -214,20 +231,47 @@
 
 <main>
 
-  <button class="connect-btn" id="btnConnect">Connect to ROBOT</button>
+  <button class="connect-btn" id="btnConnect">Connect to BADGE</button>
 
   <section id="liveSection" style="display:none">
     <h2>Live</h2>
     <div class="tele">
       <div class="cell"><div class="k">mode</div><div class="v" id="tMode">—</div></div>
-      <div class="cell">
-        <div class="k">pos</div>
-        <div class="v" id="tPos">0</div>
-        <div class="bar"><i id="tPosBar" style="left:50%"></i></div>
-      </div>
-      <div class="cell"><div class="k">L</div><div class="v" id="tL">0</div></div>
-      <div class="cell"><div class="k">R</div><div class="v" id="tR">0</div></div>
+      <div class="cell"><div class="k">state</div><div class="v" id="tState">—</div></div>
+      <div class="cell"><div class="k">score</div><div class="v" id="tScore">—</div></div>
     </div>
+  </section>
+
+  <section id="modeSection" style="display:none">
+    <h2>Mode</h2>
+    <div class="modes">
+      <button data-mode="card">Card</button>
+      <button data-mode="badge">Badge</button>
+      <button data-mode="ble">BLE</button>
+      <button data-mode="snake">Snake</button>
+      <button data-mode="dino">Dino</button>
+      <button data-mode="reaction">Reaction</button>
+      <button data-mode="dice">Dice</button>
+      <button data-mode="magic8">Magic 8</button>
+      <button data-mode="clock">Clock</button>
+      <button data-mode="stopwatch">Stopwatch</button>
+      <button data-mode="countdown">Countdown</button>
+      <button data-mode="custom">Custom*</button>
+    </div>
+    <div class="row">
+      <button id="btnMenu" class="ghost">↩ Back to menu</button>
+    </div>
+  </section>
+
+  <section id="remoteSection" style="display:none">
+    <h2>Remote Button</h2>
+    <div class="remote">
+      <button class="big" id="btnTap">TAP</button>
+      <button class="esc" id="btnEsc">EXIT</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin:10px 0 0">
+      Tap = simulate short press. Exit = double-click on device.
+    </p>
   </section>
 
   <section>
@@ -241,6 +285,7 @@
     <div class="row">
       <button id="cardSave" disabled>Save</button>
       <button id="cardLoad" class="ghost" disabled>Reload</button>
+      <button id="cardShow"  class="accent" disabled>Show on OLED</button>
     </div>
   </section>
 
@@ -253,21 +298,30 @@
     <div class="row">
       <button id="badgeSave" disabled>Save</button>
       <button id="badgeLoad" class="ghost" disabled>Reload</button>
+      <button id="badgeShow" class="accent" disabled>Show on OLED</button>
     </div>
   </section>
 
   <section>
-    <h2>Drive</h2>
-    <div class="jog">
-      <span class="blank"></span>
-      <button data-jog="160,160"    disabled class="jogbtn">▲</button>
-      <span class="blank"></span>
-      <button data-jog="-140,140"   disabled class="jogbtn">◀</button>
-      <button data-jog="0,0"        disabled class="jogbtn stop">■</button>
-      <button data-jog="140,-140"   disabled class="jogbtn">▶</button>
-      <span class="blank"></span>
-      <button data-jog="-160,-160"  disabled class="jogbtn">▼</button>
-      <span class="blank"></span>
+    <h2>Clock &amp; Countdown</h2>
+    <label>Sync clock from phone</label>
+    <div class="row" style="margin-top:0">
+      <button id="syncClock" disabled>Push current time</button>
+    </div>
+    <label>Countdown duration (seconds)</label>
+    <input id="cdSecs" type="number" min="1" value="300">
+    <div class="row">
+      <button id="cdSet" disabled>Push duration</button>
+      <button id="cdShow" class="accent" disabled>Open countdown</button>
+    </div>
+  </section>
+
+  <section class="pro-only">
+    <h2>Custom Screen <span class="pill on">PRO</span></h2>
+    <textarea id="customTxt" placeholder="Hello from&#10;web app"></textarea>
+    <div class="row">
+      <button id="customSave" disabled>Push to OLED</button>
+      <button id="customShow" class="accent" disabled>Open custom mode</button>
     </div>
   </section>
 
@@ -276,27 +330,6 @@
     <div class="row">
       <button id="btnUnlock" disabled>Unlock pro</button>
       <button id="btnLock"   class="ghost" disabled>Lock</button>
-    </div>
-  </section>
-
-  <section class="pro-only">
-    <h2>PID Tune</h2>
-    <div class="three">
-      <div><label>Kp</label><input id="pidKp" type="number" step="0.01" value="0.40"></div>
-      <div><label>Ki</label><input id="pidKi" type="number" step="0.001" value="0.000"></div>
-      <div><label>Kd</label><input id="pidKd" type="number" step="0.1" value="2.5"></div>
-    </div>
-    <div class="row">
-      <button id="pidSave" disabled>Push</button>
-      <button id="pidLoad" class="ghost" disabled>Pull</button>
-    </div>
-  </section>
-
-  <section class="pro-only">
-    <h2>Custom Screen</h2>
-    <textarea id="customTxt" placeholder="Hello from\nweb app"></textarea>
-    <div class="row">
-      <button id="customSave" disabled>Push to OLED</button>
     </div>
   </section>
 
@@ -312,10 +345,9 @@ const SVC      = '6e400001-c7a3-4b6f-9a83-1b00a0c8b001';
 const C_CMD    = '6e400002-c7a3-4b6f-9a83-1b00a0c8b001';
 const C_CARD   = '6e400003-c7a3-4b6f-9a83-1b00a0c8b001';
 const C_BADGE  = '6e400004-c7a3-4b6f-9a83-1b00a0c8b001';
-const C_PID    = '6e400005-c7a3-4b6f-9a83-1b00a0c8b001';
-const C_CUSTOM = '6e400006-c7a3-4b6f-9a83-1b00a0c8b001';
-const C_STATUS = '6e400007-c7a3-4b6f-9a83-1b00a0c8b001';
-const C_UNLOCK = '6e400008-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_CUSTOM = '6e400005-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_STATUS = '6e400006-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_UNLOCK = '6e400007-c7a3-4b6f-9a83-1b00a0c8b001';
 
 let device = null, server = null, svc = null;
 const chars = {};
@@ -350,7 +382,7 @@ $('btnConnect').onclick = async () => {
     });
     device.addEventListener('gattserverdisconnected', onDisconnected);
     log(`selected <b>${device.name}</b>`);
-    $('devName').textContent = device.name || 'ROBOT';
+    $('devName').textContent = device.name || 'BADGE';
 
     log('connecting…');
     server = await device.gatt.connect();
@@ -359,7 +391,6 @@ $('btnConnect').onclick = async () => {
     chars.cmd    = await svc.getCharacteristic(C_CMD);
     chars.card   = await svc.getCharacteristic(C_CARD);
     chars.badge  = await svc.getCharacteristic(C_BADGE);
-    chars.pid    = await svc.getCharacteristic(C_PID);
     chars.custom = await svc.getCharacteristic(C_CUSTOM);
     chars.status = await svc.getCharacteristic(C_STATUS);
     chars.unlock = await svc.getCharacteristic(C_UNLOCK);
@@ -369,7 +400,6 @@ $('btnConnect').onclick = async () => {
 
     await pullCard();
     await pullBadge();
-    await pullPid();
 
     setConnected(true);
     log('<b>linked</b>');
@@ -387,7 +417,9 @@ function onDisconnected() {
 function setConnected(on) {
   $('dot').classList.toggle('live', on);
   $('btnConnect').classList.toggle('hidden', on);
-  $('liveSection').style.display = on ? 'block' : 'none';
+  $('liveSection').style.display   = on ? 'block' : 'none';
+  $('modeSection').style.display   = on ? 'block' : 'none';
+  $('remoteSection').style.display = on ? 'block' : 'none';
   if (!on) $('devName').textContent = 'not connected';
   document.querySelectorAll('button').forEach(b => {
     if (b.id === 'btnConnect') return;
@@ -402,36 +434,54 @@ function setConnected(on) {
 
 function onStatus(e) {
   let j; try { j = JSON.parse(td.decode(e.target.value)); } catch { return; }
-  if (j.mode != null) $('tMode').textContent = j.mode;
-  if (j.pos  != null) {
-    $('tPos').textContent = j.pos;
-    const pct = Math.max(0, Math.min(100, 50 + (j.pos / 30)));
-    $('tPosBar').style.left = pct + '%';
-  }
-  if (j.l != null) $('tL').textContent = j.l;
-  if (j.r != null) $('tR').textContent = j.r;
+  if (j.mode  != null) $('tMode').textContent  = j.mode;
+  if (j.state != null) $('tState').textContent = j.state;
+  if (j.score != null) $('tScore').textContent = j.score;
 }
 
+// -------- mode switcher --------
+document.querySelectorAll('.modes button').forEach(b => {
+  b.addEventListener('click', async () => {
+    const m = b.dataset.mode;
+    try {
+      await write(chars.cmd, 'mode:' + m);
+      log('mode -> ' + m);
+    } catch (e) { log('mode fail: '+e.message, 'err'); }
+  });
+});
+$('btnMenu').onclick = async () => {
+  await write(chars.cmd, 'menu'); log('back to menu');
+};
+
+// -------- remote button --------
+$('btnTap').onclick = async () => { await write(chars.cmd, 'btn'); };
+$('btnEsc').onclick = async () => { await write(chars.cmd, 'menu'); };
+
+// -------- card --------
 async function pullCard() {
   try {
     const j = JSON.parse(await readStr(chars.card));
     $('cardName').value    = j.name    || '';
     $('cardTitle').value   = j.title   || '';
     $('cardContact').value = j.contact || '';
-    log(`card loaded`);
+    log('card loaded');
   } catch (e) { log('card pull failed: '+e.message, 'err'); }
 }
 $('cardLoad').onclick = pullCard;
 $('cardSave').onclick = async () => {
-  const payload = JSON.stringify({
+  await write(chars.card, JSON.stringify({
     name:    $('cardName').value,
     title:   $('cardTitle').value,
     contact: $('cardContact').value
-  });
-  await write(chars.card, payload);
+  }));
   log('card saved');
 };
+$('cardShow').onclick = async () => {
+  await write(chars.cmd, 'mode:card');
+  log('mode -> card');
+};
 
+// -------- badge --------
 async function pullBadge() {
   try {
     const j = JSON.parse(await readStr(chars.badge));
@@ -447,36 +497,41 @@ $('badgeSave').onclick = async () => {
   }));
   log('badge saved');
 };
-
-async function pullPid() {
-  try {
-    const [kp, ki, kd] = (await readStr(chars.pid)).split(',').map(Number);
-    $('pidKp').value = kp; $('pidKi').value = ki; $('pidKd').value = kd;
-    log(`pid ${kp}/${ki}/${kd}`);
-  } catch (e) { log('pid pull failed: '+e.message, 'err'); }
-}
-$('pidLoad').onclick = pullPid;
-$('pidSave').onclick = async () => {
-  const s = [$('pidKp').value, $('pidKi').value, $('pidKd').value].join(',');
-  await write(chars.pid, s);
-  log('pid pushed');
+$('badgeShow').onclick = async () => {
+  await write(chars.cmd, 'mode:badge');
+  log('mode -> badge');
 };
 
+// -------- clock + countdown --------
+$('syncClock').onclick = async () => {
+  // send seconds-of-day in the device's local time (no TZ to firmware)
+  const d = new Date();
+  const sod = d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds();
+  await write(chars.cmd, 'time:' + sod);
+  log('clock synced (' + sod + 's of day)');
+};
+$('cdSet').onclick = async () => {
+  const s = Math.max(1, parseInt($('cdSecs').value, 10) || 30);
+  await write(chars.cmd, 'cd:' + s);
+  log('countdown set: ' + s + 's');
+};
+$('cdShow').onclick = async () => {
+  await write(chars.cmd, 'mode:countdown');
+  log('mode -> countdown');
+};
+
+// -------- custom --------
 $('customSave').onclick = async () => {
   const t = $('customTxt').value.replace(/\\n/g, '\n');
   await write(chars.custom, t);
   log('custom pushed');
 };
+$('customShow').onclick = async () => {
+  await write(chars.cmd, 'mode:custom');
+  log('mode -> custom');
+};
 
-document.querySelectorAll('.jogbtn').forEach(btn => {
-  const start = () => write(chars.cmd, 'motor:'+btn.dataset.jog);
-  const stop  = () => write(chars.cmd, 'motor:0,0');
-  btn.addEventListener('pointerdown', e => { e.preventDefault(); start(); });
-  btn.addEventListener('pointerup', stop);
-  btn.addEventListener('pointerleave', stop);
-  btn.addEventListener('pointercancel', stop);
-});
-
+// -------- pro lock --------
 $('btnUnlock').onclick = async () => {
   await write(chars.unlock, '1');
   $('proBadge').textContent = 'pro';

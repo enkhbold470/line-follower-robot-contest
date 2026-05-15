@@ -1,20 +1,24 @@
 // ============================================================
 //  Modes.h — one function per menu mode (enter/tick/exit)
+//  Pure software modes: badge / card / games / utils. No motor.
 // ============================================================
 #pragma once
 #include <Arduino.h>
 
 enum ModeId {
   MODE_NONE,
-  MODE_LINE_BoW,      // Black line on White surface (only line-follow variant)
-  MODE_CALIBRATE,
-  MODE_CARD,
-  MODE_BADGE,
-  MODE_BLE,
-  MODE_IR_TEST,
-  MODE_MOTOR_TEST,
-  MODE_PID_TUNE,
-  MODE_CUSTOM
+  MODE_CARD,        // business card
+  MODE_BADGE,       // event badge marquee
+  MODE_BLE,         // BLE pairing screen
+  MODE_SNAKE,       // 1-button snake
+  MODE_DINO,        // dino-runner jump
+  MODE_REACTION,    // reaction-time test
+  MODE_DICE,        // dice roller
+  MODE_MAGIC8,      // magic 8-ball
+  MODE_CLOCK,       // clock (BLE-set or uptime)
+  MODE_STOPWATCH,
+  MODE_COUNTDOWN,
+  MODE_CUSTOM       // arbitrary text from BLE
 };
 
 namespace Modes {
@@ -23,8 +27,6 @@ namespace Modes {
   void tick (ModeId m, int buttonEvent);   // 0=none 1=short 2=long 3=double
   void exit (ModeId m);
 
-  // If true, a long-press inside the active mode exits.
-  // For modes that need long-press internally (e.g. calibrate "done"),
-  // they handle it themselves and this returns false.
-  bool longPressExits();
+  // Whether long-press exits the mode (true) or is consumed internally (false).
+  bool longPressExits(ModeId m);
 }

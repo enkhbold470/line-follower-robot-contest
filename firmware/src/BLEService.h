@@ -1,25 +1,22 @@
 // ============================================================
 //  BLEService.h — GATT server for the Web Bluetooth control app
 //
-//  Single service (UUID below) exposes these characteristics:
+//  Single service exposes these characteristics:
 //
-//   CMD       (write, no response)     "mode:line_bw" | "motor:80,-80" | etc
-//   CARD      (read + write)            JSON: {"name":"...", ...}
-//   BADGE     (read + write)            JSON: {"l1":"hi", "l2":"world"}
-//   PID       (read + write)            JSON: {"kp":0.4,"ki":0,"kd":2}
-//   CUSTOM    (read + write)            UTF-8 payload for Custom Mode
-//   STATUS    (read + notify)           JSON: live telemetry
-//   UNLOCK    (write)                   write 1 → unlock locked menu items
-//
-//  UUIDs are deterministic (made-up vendor namespace).
+//   CMD       (write, no response)     "mode:snake" | "menu" | "btn"
+//                                      "time:<epoch>" | "cd:<seconds>"
+//   CARD      (read + write)           JSON: {"name":"...", ...}
+//   BADGE     (read + write)           JSON: {"l1":"hi", "l2":"world"}
+//   CUSTOM    (read + write)           UTF-8 payload for Custom Mode
+//   STATUS    (read + notify)          JSON: live telemetry
+//   UNLOCK    (write)                  write "1" -> unlock locked modes
 // ============================================================
 #pragma once
 #include <Arduino.h>
 
-// Namespace name `Ble` avoids collision with Arduino-ESP32's `BLEService` class.
 namespace Ble {
   void begin();
-  void tick();                                  // call from loop()
+  void tick();
 
   bool isConnected();
   bool isUnlocked();
@@ -28,11 +25,15 @@ namespace Ble {
   String  cardJson();
   String  badgeJson();
   String  customText();
-  void    pidValues(float& kp, float& ki, float& kd);
 
-  // commands queue (cmd handed off to Modes.cpp by main loop, simple poll)
-  bool    popCommand(String& out);
+  // utils set by CMD strings
+  uint32_t clockEpochSeconds();              // current seconds-of-day if set
+  bool     clockIsSet();
+  uint32_t countdownSeconds();               // user-configured countdown duration
 
-  // status push (called by Modes.cpp ~10 Hz)
+  // command queue (consumed once per pop)
+  bool    peekModeCommand(String& out);
+
+  // status push
   void    pushStatus(const String& json);
 }

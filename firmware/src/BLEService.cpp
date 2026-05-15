@@ -1,18 +1,10 @@
 // ============================================================
 //  BLEService.cpp - NimBLE GATT server for the Web Bluetooth app
 //
-//  Switched from arduino-esp32 bluedroid (BLEDevice.h) to
-//  NimBLE-Arduino because the bluedroid stack on ESP32-C3 throws
-//  "GATT Error: Not supported" when Web Bluetooth tries to
-//  startNotifications() (CCCD write fails). NimBLE auto-adds the
-//  CCCD (0x2902) descriptor for any NOTIFY characteristic and
-//  uses ~5x less flash.
-//
-//  Public API (BLEService.h) is unchanged - main.cpp / Modes.cpp
-//  don't need edits.
+//  PID characteristic removed; characteristic slot layout changed
+//  (see UUIDs below). Custom + Status + Unlock shifted by one slot.
 // ============================================================
 #include "BLEService.h"
-
 #include <NimBLEDevice.h>
 
 // Custom UUIDs - match these in the web app
@@ -20,10 +12,9 @@
 #define CHR_CMD_UUID    "6e400002-c7a3-4b6f-9a83-1b00a0c8b001"
 #define CHR_CARD_UUID   "6e400003-c7a3-4b6f-9a83-1b00a0c8b001"
 #define CHR_BADGE_UUID  "6e400004-c7a3-4b6f-9a83-1b00a0c8b001"
-#define CHR_PID_UUID    "6e400005-c7a3-4b6f-9a83-1b00a0c8b001"
-#define CHR_CUSTOM_UUID "6e400006-c7a3-4b6f-9a83-1b00a0c8b001"
-#define CHR_STATUS_UUID "6e400007-c7a3-4b6f-9a83-1b00a0c8b001"
-#define CHR_UNLOCK_UUID "6e400008-c7a3-4b6f-9a83-1b00a0c8b001"
+#define CHR_CUSTOM_UUID "6e400005-c7a3-4b6f-9a83-1b00a0c8b001"
+#define CHR_STATUS_UUID "6e400006-c7a3-4b6f-9a83-1b00a0c8b001"
+#define CHR_UNLOCK_UUID "6e400007-c7a3-4b6f-9a83-1b00a0c8b001"
 
 namespace Ble {
 
@@ -31,7 +22,6 @@ static NimBLEServer*         server   = nullptr;
 static NimBLECharacteristic* chCmd    = nullptr;
 static NimBLECharacteristic* chCard   = nullptr;
 static NimBLECharacteristic* chBadge  = nullptr;
-static NimBLECharacteristic* chPid    = nullptr;
 static NimBLECharacteristic* chCustom = nullptr;
 static NimBLECharacteristic* chStatus = nullptr;
 static NimBLECharacteristic* chUnlock = nullptr;
@@ -42,14 +32,41 @@ static String cmdQueue;
 static bool   cmdReady = false;
 
 static String cardData  = "{\"name\":\"Inky G.\",\"title\":\"Maker\","
-                          "\"contact\":\"i@inkyg.com\","
-                          "\"tag\":\"inkyg.com\"}";
+                          "\"contact\":\"i@inkyg.com\"}";
 static String badgeData = "{\"l1\":\"INKY G.\",\"l2\":\"say hi @ inkyg.com\"}";
-static String customData = "Hello from\nInky's robot";
+static String customData = "Hello from\nBADGE";
 
-static float kp = 0.40, ki = 0.0, kd = 2.5;
+// clock: when "time:<epoch>" arrives we record (clockBaseS, clockBaseMs)
+static uint32_t clockBaseS  = 0;
+static uint32_t clockBaseMs = 0;
+static bool     clockSet    = false;
 
-// ------- server callbacks -------
+// countdown user-configured target seconds
+static uint32_t cdSeconds = 30;
+
+// ------- helpers ------------------------------------------------------
+static void enqueueCmd(const String& v) {
+  if (!v.length()) return;
+
+  // "time:N" sets clock; "cd:N" sets countdown target; both consumed here.
+  if (v.startsWith("time:")) {
+    uint32_t s  = (uint32_t) strtoul(v.c_str() + 5, nullptr, 10);
+    clockBaseS  = s;
+    clockBaseMs = millis();
+    clockSet    = true;
+    return;
+  }
+  if (v.startsWith("cd:")) {
+    uint32_t s = (uint32_t) strtoul(v.c_str() + 3, nullptr, 10);
+    if (s > 0) cdSeconds = s;
+    return;
+  }
+  // anything else: drop into queue for main loop
+  cmdQueue = v;
+  cmdReady = true;
+}
+
+// ------- server callbacks ---------------------------------------------
 class SrvCB : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer*) override {
     connected = true;
@@ -62,11 +79,10 @@ class SrvCB : public NimBLEServerCallbacks {
   }
 };
 
-// ------- characteristic callbacks -------
+// ------- characteristic callbacks -------------------------------------
 class CmdCB : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c) override {
-    String v = c->getValue().c_str();
-    if (v.length()) { cmdQueue = v; cmdReady = true; }
+    enqueueCmd(String(c->getValue().c_str()));
   }
 };
 class CardCB : public NimBLECharacteristicCallbacks {
@@ -78,17 +94,6 @@ class BadgeCB : public NimBLECharacteristicCallbacks {
 class CustomCB : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c) override { customData = c->getValue().c_str(); }
 };
-class PidCB : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* c) override {
-    String s = c->getValue().c_str();
-    int a = s.indexOf(','), b = s.indexOf(',', a + 1);
-    if (a > 0 && b > a) {
-      kp = s.substring(0, a).toFloat();
-      ki = s.substring(a + 1, b).toFloat();
-      kd = s.substring(b + 1).toFloat();
-    }
-  }
-};
 class UnlockCB : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c) override {
     String v = c->getValue().c_str();
@@ -99,9 +104,6 @@ class UnlockCB : public NimBLECharacteristicCallbacks {
 
 void begin() {
   NimBLEDevice::init("ROBOT");
-  // Optional: bump TX power for better range. Default is fine for testing.
-  // NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-
   server = NimBLEDevice::createServer();
   server->setCallbacks(new SrvCB());
 
@@ -125,10 +127,6 @@ void begin() {
   chBadge  = mkChr(CHR_BADGE_UUID,
                    NIMBLE_PROPERTY::READ  | NIMBLE_PROPERTY::WRITE,
                    new BadgeCB(), badgeData);
-  chPid    = mkChr(CHR_PID_UUID,
-                   NIMBLE_PROPERTY::READ  | NIMBLE_PROPERTY::WRITE,
-                   new PidCB(),
-                   String(kp, 3) + "," + String(ki, 3) + "," + String(kd, 3));
   chCustom = mkChr(CHR_CUSTOM_UUID,
                    NIMBLE_PROPERTY::READ  | NIMBLE_PROPERTY::WRITE,
                    new CustomCB(), customData);
@@ -136,8 +134,6 @@ void begin() {
                    NIMBLE_PROPERTY::WRITE,
                    new UnlockCB());
 
-  // STATUS: read + notify. NimBLE auto-adds the 0x2902 CCCD; we do
-  // NOT manually addDescriptor() like bluedroid required.
   chStatus = svc->createCharacteristic(CHR_STATUS_UUID,
                 NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   chStatus->setValue("{}");
@@ -152,7 +148,7 @@ void begin() {
   Serial.println(F("[ble] advertising as ROBOT (NimBLE)"));
 }
 
-void tick() { /* callbacks handle everything; nothing periodic */ }
+void tick() { /* callbacks handle everything */ }
 
 bool isConnected() { return connected; }
 bool isUnlocked()  { return unlocked;  }
@@ -160,9 +156,18 @@ bool isUnlocked()  { return unlocked;  }
 String cardJson()   { return cardData;   }
 String badgeJson()  { return badgeData;  }
 String customText() { return customData; }
-void   pidValues(float& a, float& b, float& c) { a = kp; b = ki; c = kd; }
 
-bool popCommand(String& out) {
+uint32_t clockEpochSeconds() {
+  if (!clockSet) {
+    // uptime fallback: tick from boot
+    return millis() / 1000UL;
+  }
+  return clockBaseS + (millis() - clockBaseMs) / 1000UL;
+}
+bool     clockIsSet()        { return clockSet; }
+uint32_t countdownSeconds()  { return cdSeconds; }
+
+bool peekModeCommand(String& out) {
   if (!cmdReady) return false;
   out = cmdQueue; cmdReady = false; return true;
 }
