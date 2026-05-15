@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0a0a0a"/>
+  <rect x="40" y="40" width="432" height="432" rx="72" fill="#16161a" stroke="#2a2924" stroke-width="8"/>
+  <text x="256" y="358" text-anchor="middle"
+        font-family="-apple-system,system-ui,Helvetica,sans-serif"
+        font-weight="800" font-size="300" fill="#ff4a1c">B</text>
+  <circle cx="420" cy="92" r="20" fill="#b6c46b"/>
+</svg>

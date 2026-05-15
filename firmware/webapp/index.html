@@ -5,6 +5,15 @@
 <title>BADGE</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0a">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BADGE">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
   :root {
     --bg:     #0a0a0a;
@@ -546,6 +555,15 @@ $('btnLock').onclick = async () => {
   document.body.classList.remove('pro');
   log('locked');
 };
+
+// -------- PWA service worker --------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => log('pwa ready'))
+      .catch((e) => log('sw register failed: ' + e.message, 'err'));
+  });
+}
 </script>
 
 </body>
