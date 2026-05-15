@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ROBOT</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<style>
+  :root {
+    --bg:     #0a0a0a;
+    --bg-2:   #16161a;
+    --ink:    #f4ecd8;
+    --dim:    #7a766c;
+    --line:   #2a2924;
+    --hot:    #ff4a1c;
+    --ok:     #b6c46b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.4 -apple-system, system-ui, sans-serif;
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* status bar - always visible at top */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--dim);
+    flex-shrink: 0;
+  }
+  .dot.live { background: var(--ok); }
+  .dot.err  { background: var(--hot); }
+  .topbar .name {
+    font-weight: 600;
+    flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .topbar .pro {
+    font-size: 11px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .topbar .pro.on { color: var(--hot); }
+
+  /* main column */
+  main {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  /* card sections */
+  section {
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  section h2 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  section > h2:first-child { margin-top: 0; }
+
+  /* connect button - big and obvious */
+  .connect-btn {
+    width: 100%;
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 600;
+    background: var(--hot);
+    color: #fff;
+    border: 0;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .connect-btn:disabled { background: var(--bg-2); color: var(--dim); }
+  .connect-btn.hidden { display: none; }
+
+  /* telemetry - compact 4-cell grid */
+  .tele {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    text-align: center;
+  }
+  .tele .cell .k { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .tele .cell .v { font-size: 18px; font-weight: 600; margin-top: 2px; }
+  .bar { height: 3px; background: var(--line); margin-top: 6px; position: relative; border-radius: 2px; }
+  .bar > i { position: absolute; top: 0; bottom: 0; width: 4px; background: var(--hot); border-radius: 2px; transition: left 100ms; }
+
+  /* form */
+  label {
+    display: block;
+    font-size: 11px;
+    color: var(--dim);
+    margin: 12px 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  label:first-child { margin-top: 0; }
+  input, textarea {
+    width: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    font: inherit;
+    font-size: 16px;  /* >=16 prevents iOS zoom */
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--hot); }
+  textarea { min-height: 80px; resize: vertical; }
+
+  /* buttons */
+  button {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 16px;
+    background: var(--ink);
+    color: var(--bg);
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  button.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .row button { flex: 1; }
+
+  /* jog - 3x3 phone-friendly */
+  .jog {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 240px;
+    margin: 0 auto;
+  }
+  .jog button {
+    aspect-ratio: 1;
+    font-size: 24px;
+    padding: 0;
+  }
+  .jog .blank { visibility: hidden; }
+  .jog .stop { background: var(--hot); color: #fff; }
+
+  /* PID 3-column */
+  .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* pro section toggleable */
+  .pro-only { display: none; }
+  body.pro .pro-only { display: block; }
+
+  /* log */
+  .log {
+    margin-top: 12px;
+    height: 90px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: 11px/1.4 ui-monospace, monospace;
+    color: var(--dim);
+    background: var(--bg);
+  }
+  .log .ln b { color: var(--ink); }
+  .log .ln.err b { color: var(--hot); }
+
+  /* alert */
+  .alert {
+    margin: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--hot);
+    color: var(--hot);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="dot" id="dot"></span>
+  <span class="name" id="devName">not connected</span>
+  <span class="pro" id="proBadge">basic</span>
+</div>
+
+<div id="not-supported" class="alert" style="display:none">
+  Web Bluetooth not available. Use Chrome/Edge on Android or desktop. iOS: use Bluefy.
+</div>
+
+<main>
+
+  <button class="connect-btn" id="btnConnect">Connect to ROBOT</button>
+
+  <section id="liveSection" style="display:none">
+    <h2>Live</h2>
+    <div class="tele">
+      <div class="cell"><div class="k">mode</div><div class="v" id="tMode">—</div></div>
+      <div class="cell">
+        <div class="k">pos</div>
+        <div class="v" id="tPos">0</div>
+        <div class="bar"><i id="tPosBar" style="left:50%"></i></div>
+      </div>
+      <div class="cell"><div class="k">L</div><div class="v" id="tL">0</div></div>
+      <div class="cell"><div class="k">R</div><div class="v" id="tR">0</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Business Card</h2>
+    <label>Name</label>
+    <input id="cardName" type="text" placeholder="Inky Ganbold">
+    <label>Title</label>
+    <input id="cardTitle" type="text" placeholder="Maker">
+    <label>Email or Website</label>
+    <input id="cardContact" type="text" placeholder="i@inkyg.com">
+    <div class="row">
+      <button id="cardSave" disabled>Save</button>
+      <button id="cardLoad" class="ghost" disabled>Reload</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Event Badge</h2>
+    <label>Line 1 (marquee)</label>
+    <input id="badgeL1" type="text" placeholder="INKY G.">
+    <label>Line 2</label>
+    <input id="badgeL2" type="text" placeholder="say hi @ inkyg.com">
+    <div class="row">
+      <button id="badgeSave" disabled>Save</button>
+      <button id="badgeLoad" class="ghost" disabled>Reload</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Drive</h2>
+    <div class="jog">
+      <span class="blank"></span>
+      <button data-jog="160,160"    disabled class="jogbtn">▲</button>
+      <span class="blank"></span>
+      <button data-jog="-140,140"   disabled class="jogbtn">◀</button>
+      <button data-jog="0,0"        disabled class="jogbtn stop">■</button>
+      <button data-jog="140,-140"   disabled class="jogbtn">▶</button>
+      <span class="blank"></span>
+      <button data-jog="-160,-160"  disabled class="jogbtn">▼</button>
+      <span class="blank"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Session</h2>
+    <div class="row">
+      <button id="btnUnlock" disabled>Unlock pro</button>
+      <button id="btnLock"   class="ghost" disabled>Lock</button>
+    </div>
+  </section>
+
+  <section class="pro-only">
+    <h2>PID Tune</h2>
+    <div class="three">
+      <div><label>Kp</label><input id="pidKp" type="number" step="0.01" value="0.40"></div>
+      <div><label>Ki</label><input id="pidKi" type="number" step="0.001" value="0.000"></div>
+      <div><label>Kd</label><input id="pidKd" type="number" step="0.1" value="2.5"></div>
+    </div>
+    <div class="row">
+      <button id="pidSave" disabled>Push</button>
+      <button id="pidLoad" class="ghost" disabled>Pull</button>
+    </div>
+  </section>
+
+  <section class="pro-only">
+    <h2>Custom Screen</h2>
+    <textarea id="customTxt" placeholder="Hello from\nweb app"></textarea>
+    <div class="row">
+      <button id="customSave" disabled>Push to OLED</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <div class="log" id="log"></div>
+  </section>
+
+</main>
+
+<script>
+const SVC      = '6e400001-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_CMD    = '6e400002-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_CARD   = '6e400003-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_BADGE  = '6e400004-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_PID    = '6e400005-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_CUSTOM = '6e400006-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_STATUS = '6e400007-c7a3-4b6f-9a83-1b00a0c8b001';
+const C_UNLOCK = '6e400008-c7a3-4b6f-9a83-1b00a0c8b001';
+
+let device = null, server = null, svc = null;
+const chars = {};
+
+const $  = id => document.getElementById(id);
+const td = new TextDecoder();
+const te = new TextEncoder();
+
+if (!navigator.bluetooth) {
+  $('not-supported').style.display = 'block';
+  $('btnConnect').disabled = true;
+}
+
+function log(msg, kind='') {
+  const el = $('log');
+  const ln = document.createElement('div');
+  ln.className = 'ln' + (kind ? ' '+kind : '');
+  ln.innerHTML = `<b>${new Date().toLocaleTimeString()}</b> ${msg}`;
+  el.appendChild(ln);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function write(ch, str)  { await ch.writeValue(te.encode(str)); }
+async function readStr(ch)     { return td.decode(await ch.readValue()); }
+
+$('btnConnect').onclick = async () => {
+  try {
+    log('requesting device…');
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'ROBOT' }],
+      optionalServices: [SVC]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    log(`selected <b>${device.name}</b>`);
+    $('devName').textContent = device.name || 'ROBOT';
+
+    log('connecting…');
+    server = await device.gatt.connect();
+    svc    = await server.getPrimaryService(SVC);
+
+    chars.cmd    = await svc.getCharacteristic(C_CMD);
+    chars.card   = await svc.getCharacteristic(C_CARD);
+    chars.badge  = await svc.getCharacteristic(C_BADGE);
+    chars.pid    = await svc.getCharacteristic(C_PID);
+    chars.custom = await svc.getCharacteristic(C_CUSTOM);
+    chars.status = await svc.getCharacteristic(C_STATUS);
+    chars.unlock = await svc.getCharacteristic(C_UNLOCK);
+
+    await chars.status.startNotifications();
+    chars.status.addEventListener('characteristicvaluechanged', onStatus);
+
+    await pullCard();
+    await pullBadge();
+    await pullPid();
+
+    setConnected(true);
+    log('<b>linked</b>');
+  } catch (e) {
+    log(`connect failed: ${e.message}`, 'err');
+    setConnected(false);
+  }
+};
+
+function onDisconnected() {
+  log('disconnected', 'err');
+  setConnected(false);
+}
+
+function setConnected(on) {
+  $('dot').classList.toggle('live', on);
+  $('btnConnect').classList.toggle('hidden', on);
+  $('liveSection').style.display = on ? 'block' : 'none';
+  if (!on) $('devName').textContent = 'not connected';
+  document.querySelectorAll('button').forEach(b => {
+    if (b.id === 'btnConnect') return;
+    b.disabled = !on;
+  });
+  if (!on) {
+    $('proBadge').textContent = 'basic';
+    $('proBadge').classList.remove('on');
+    document.body.classList.remove('pro');
+  }
+}
+
+function onStatus(e) {
+  let j; try { j = JSON.parse(td.decode(e.target.value)); } catch { return; }
+  if (j.mode != null) $('tMode').textContent = j.mode;
+  if (j.pos  != null) {
+    $('tPos').textContent = j.pos;
+    const pct = Math.max(0, Math.min(100, 50 + (j.pos / 30)));
+    $('tPosBar').style.left = pct + '%';
+  }
+  if (j.l != null) $('tL').textContent = j.l;
+  if (j.r != null) $('tR').textContent = j.r;
+}
+
+async function pullCard() {
+  try {
+    const j = JSON.parse(await readStr(chars.card));
+    $('cardName').value    = j.name    || '';
+    $('cardTitle').value   = j.title   || '';
+    $('cardContact').value = j.contact || '';
+    log(`card loaded`);
+  } catch (e) { log('card pull failed: '+e.message, 'err'); }
+}
+$('cardLoad').onclick = pullCard;
+$('cardSave').onclick = async () => {
+  const payload = JSON.stringify({
+    name:    $('cardName').value,
+    title:   $('cardTitle').value,
+    contact: $('cardContact').value
+  });
+  await write(chars.card, payload);
+  log('card saved');
+};
+
+async function pullBadge() {
+  try {
+    const j = JSON.parse(await readStr(chars.badge));
+    $('badgeL1').value = j.l1 || '';
+    $('badgeL2').value = j.l2 || '';
+    log('badge loaded');
+  } catch (e) { log('badge pull failed: '+e.message, 'err'); }
+}
+$('badgeLoad').onclick = pullBadge;
+$('badgeSave').onclick = async () => {
+  await write(chars.badge, JSON.stringify({
+    l1: $('badgeL1').value, l2: $('badgeL2').value
+  }));
+  log('badge saved');
+};
+
+async function pullPid() {
+  try {
+    const [kp, ki, kd] = (await readStr(chars.pid)).split(',').map(Number);
+    $('pidKp').value = kp; $('pidKi').value = ki; $('pidKd').value = kd;
+    log(`pid ${kp}/${ki}/${kd}`);
+  } catch (e) { log('pid pull failed: '+e.message, 'err'); }
+}
+$('pidLoad').onclick = pullPid;
+$('pidSave').onclick = async () => {
+  const s = [$('pidKp').value, $('pidKi').value, $('pidKd').value].join(',');
+  await write(chars.pid, s);
+  log('pid pushed');
+};
+
+$('customSave').onclick = async () => {
+  const t = $('customTxt').value.replace(/\\n/g, '\n');
+  await write(chars.custom, t);
+  log('custom pushed');
+};
+
+document.querySelectorAll('.jogbtn').forEach(btn => {
+  const start = () => write(chars.cmd, 'motor:'+btn.dataset.jog);
+  const stop  = () => write(chars.cmd, 'motor:0,0');
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); start(); });
+  btn.addEventListener('pointerup', stop);
+  btn.addEventListener('pointerleave', stop);
+  btn.addEventListener('pointercancel', stop);
+});
+
+$('btnUnlock').onclick = async () => {
+  await write(chars.unlock, '1');
+  $('proBadge').textContent = 'pro';
+  $('proBadge').classList.add('on');
+  document.body.classList.add('pro');
+  log('<b>pro unlocked</b>');
+};
+$('btnLock').onclick = async () => {
+  await write(chars.unlock, '0');
+  $('proBadge').textContent = 'basic';
+  $('proBadge').classList.remove('on');
+  document.body.classList.remove('pro');
+  log('locked');
+};
+</script>
+
+</body>
+</html>

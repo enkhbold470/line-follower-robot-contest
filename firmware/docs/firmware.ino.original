@@ -1,0 +1,174 @@
+// ============================================================
+//  ROBOT FIRMWARE — line-following / business-card / badge bot
+//  Hardware:  ESP32 + DRV8833 + 4×QRE1113GR + SSD1306 OLED + 1 button
+//  Author:    generated for custom PCB (Netlist_Schematic1)
+// ============================================================
+//
+//  BUTTON UX
+//    short press  (< 400 ms)  → next menu item / next action
+//    long  press  (≥ 700 ms)  → select / enter
+//    double press (< 300 ms)  → back / exit
+//
+//  Menu items                          (ones marked * unlock via BLE app)
+//    1. Line Follow — Black on White
+//    2. Line Follow — White on Black
+//    3. Calibrate IR
+//    4. Business Card
+//    5. Event Badge
+//    6. BLE Connect
+//    7. IR Test
+//    8. Motor Test
+//    9. PID Tune *
+//   10. Custom Mode *
+//
+// ============================================================
+
+#include <Arduino.h>
+#include "Pins.h"
+#include "Motor.h"
+#include "Sensors.h"
+#include "Display.h"
+#include "BLEService.h"
+#include "Modes.h"
+
+// ---------- button handler ----------
+namespace Button {
+  enum Event { NONE, SHORT, LONG, DOUBLE };
+
+  static uint32_t pressStart  = 0;
+  static uint32_t lastRelease = 0;
+  static bool     prevState   = HIGH;        // active-low
+  static bool     waitingDbl  = false;
+  static bool     longFired   = false;
+
+  Event poll() {
+    bool s = digitalRead(PIN_BUTTON);
+    uint32_t now = millis();
+    Event ev = NONE;
+
+    // press edge
+    if (s == LOW && prevState == HIGH) {
+      pressStart = now;
+      longFired  = false;
+    }
+    // long-press while held — fires exactly once
+    if (s == LOW && !longFired && (now - pressStart) >= 700) {
+      ev = LONG;
+      longFired = true;
+    }
+    // release edge
+    if (s == HIGH && prevState == LOW) {
+      uint32_t dur = now - pressStart;
+      if (!longFired && dur >= 30) {        // not long-press, debounced
+        if (waitingDbl && (now - lastRelease) < 300) {
+          ev = DOUBLE;
+          waitingDbl = false;
+        } else {
+          waitingDbl = true;
+          lastRelease = now;
+        }
+      }
+    }
+    // pending short press resolves after the double-press window closes
+    if (waitingDbl && (now - lastRelease) > 300) {
+      ev = SHORT;
+      waitingDbl = false;
+    }
+    prevState = s;
+    return ev;
+  }
+}
+
+// ---------- global state ----------
+enum AppState {
+  STATE_MENU,
+  STATE_RUNNING
+};
+
+static AppState  appState = STATE_MENU;
+static int       menuIdx  = 0;
+static ModeId    activeMode = MODE_NONE;
+
+static const char* MENU_ITEMS[] = {
+  "Line: B on W",
+  "Line: W on B",
+  "Calibrate IR",
+  "Business Card",
+  "Event Badge",
+  "BLE Connect",
+  "IR Test",
+  "Motor Test",
+  "PID Tune",
+  "Custom Mode"
+};
+static const ModeId MENU_MODES[] = {
+  MODE_LINE_BoW, MODE_LINE_WoB, MODE_CALIBRATE,
+  MODE_CARD,    MODE_BADGE,    MODE_BLE,
+  MODE_IR_TEST, MODE_MOTOR_TEST,
+  MODE_PID_TUNE, MODE_CUSTOM
+};
+static const bool MENU_LOCKED[] = {
+  false,false,false,false,false,false,false,false,
+  true,  // PID Tune (BLE-unlock)
+  true   // Custom (BLE-unlock)
+};
+static const int MENU_LEN = sizeof(MENU_ITEMS)/sizeof(MENU_ITEMS[0]);
+
+// ============================================================
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+  Serial.println(F("\n[boot] robot firmware"));
+
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
+
+  Motor::begin();
+  Sensors::begin();
+  Display::begin();
+  BLEService::begin();
+  Modes::begin();
+
+  Display::splash("HELLO");
+  delay(800);
+  Display::drawMenu(MENU_ITEMS, MENU_LEN, menuIdx, MENU_LOCKED,
+                    BLEService::isUnlocked());
+}
+
+// ============================================================
+void loop() {
+  BLEService::tick();      // process BLE writes / notify status
+
+  Button::Event ev = Button::poll();
+
+  if (appState == STATE_MENU) {
+    if (ev == Button::SHORT) {
+      menuIdx = (menuIdx + 1) % MENU_LEN;
+      Display::drawMenu(MENU_ITEMS, MENU_LEN, menuIdx, MENU_LOCKED,
+                        BLEService::isUnlocked());
+    }
+    else if (ev == Button::LONG) {
+      if (MENU_LOCKED[menuIdx] && !BLEService::isUnlocked()) {
+        Display::toast("LOCKED — pair BLE");
+        delay(900);
+        Display::drawMenu(MENU_ITEMS, MENU_LEN, menuIdx, MENU_LOCKED,
+                          BLEService::isUnlocked());
+      } else {
+        activeMode = MENU_MODES[menuIdx];
+        appState   = STATE_RUNNING;
+        Modes::enter(activeMode);
+      }
+    }
+  }
+  else { // STATE_RUNNING
+    if (ev == Button::DOUBLE || (ev == Button::LONG && Modes::longPressExits())) {
+      Modes::exit(activeMode);
+      Motor::stop();
+      activeMode = MODE_NONE;
+      appState   = STATE_MENU;
+      Display::drawMenu(MENU_ITEMS, MENU_LEN, menuIdx, MENU_LOCKED,
+                        BLEService::isUnlocked());
+    } else {
+      Modes::tick(activeMode, ev);
+    }
+  }
+}
