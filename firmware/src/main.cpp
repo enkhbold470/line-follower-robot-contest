@@ -136,6 +136,11 @@ void setup() {
   delay(100);
   Serial.println(F("\n[boot] badge firmware (esp32-c3)"));
 
+  // battery: drop CPU 160 -> 80 MHz. NimBLE on C3 requires >=80 MHz;
+  // going lower breaks BLE timing. Halves active current draw.
+  setCpuFrequencyMhz(80);
+  Serial.printf("[pm] cpu = %u MHz\n", getCpuFrequencyMhz());
+
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
   Display::begin();
@@ -207,4 +212,7 @@ void loop() {
       Modes::tick(activeMode, ev);
     }
   }
+
+  // battery: yield to idle task so radio modem-sleeps between BLE events.
+  delay(2);
 }

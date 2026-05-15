@@ -59,6 +59,7 @@ void begin() {
   oled.setFontPosTop();
   oled.setDrawColor(1);
   oled.setFont(FONT_S);
+  oled.setContrast(0x40);   // dimmer panel = lower current
   oled.clearBuffer();
   oled.sendBuffer();
 }
