@@ -26,7 +26,7 @@
 //  AIN2                    PIN_AIN2            6
 //  BIN1                    PIN_BIN1           21
 //  BIN2                    PIN_BIN2           20
-//  DRV_SLEEP               PIN_DRV_SLEEP      10
+//  DRV_SLEEP               PIN_DRV_SLEEP       7
 //  IR-OUT1                 PIN_IR1             0     (ADC1_CH0)
 //  IR-OUT2                 PIN_IR2             1     (ADC1_CH1)
 //  IR-OUT3                 PIN_IR3             2     (ADC1_CH2, strap)
@@ -35,7 +35,7 @@
 //  SDA                     PIN_SDA             8     (strap, pull-up safe)
 //  SCL                     PIN_SCL             9     (strap, pull-up safe)
 //
-//  Free / unused: GPIO7
+//  Free / unused: GPIO10
 // ============================================================
 #pragma once
 
@@ -44,7 +44,7 @@
 #define PIN_AIN2         6
 #define PIN_BIN1        21
 #define PIN_BIN2        20
-#define PIN_DRV_SLEEP   10
+#define PIN_DRV_SLEEP   7
 
 // ---- QRE1113GR IR reflectance sensors (ADC1 only on C3) ----
 #define PIN_IR1          0
